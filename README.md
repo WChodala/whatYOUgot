@@ -1,10 +1,9 @@
-author : Wojciech Chodala
+# author : Wojciech Chodala
 
-functionality : directory maper
+# functionality : directory maper
 
-comments :  
+# comments :  
 Good at malware exposure - maps all sudo/super admin access files, hidden directories, and all that shenanigans in the background.
 Recommended to use with machine learning/AI to compare daily results. This can reduce the timeframe from breach to persistent threat actor detection.
 
-
-## Requires to be run as admin/sudo
+Requires to be run as admin/sudo, thats because of restricted files processing.
