@@ -1,0 +1,145 @@
+import os
+import concurrent.futures
+from tqdm import tqdm
+from colorama import init, Fore, Style
+from datetime import datetime
+
+# Initialize colorama
+init()
+
+def is_root():
+    return os.geteuid() == 0
+
+def directory_mapper(root_dir, log_file, error_log_file, progress_callback=None):
+    file_count = sum([len(files) for r, d, files in os.walk(root_dir)])
+    count = 0
+
+    for dirpath, dirnames, filenames in os.walk(root_dir):
+        files_info = []
+        for f in filenames:
+            try:
+                file_path = os.path.join(dirpath, f)
+                files_info.append({
+                    'name': f,
+                    'size': os.path.getsize(file_path),
+                    'extension': os.path.splitext(f)[1],
+                    'path': file_path
+                })
+            except (OSError, UnicodeEncodeError) as e:
+                error_log_file.write(f"Error processing file {file_path}: {e}\n")
+
+        dir_info = {
+            'path': dirpath,
+            'directories': dirnames,
+            'files': files_info
+        }
+
+        write_directory_structure(log_file, dir_info)
+
+        count += len(filenames)
+        if progress_callback:
+            progress_callback(count, file_count)
+
+    log_file.flush()
+    os.fsync(log_file.fileno())
+    error_log_file.flush()
+    os.fsync(error_log_file.fileno())
+
+def format_size(size):
+    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+        if size < 1024.0:
+            return f"{size:.1f} {unit}"
+        size /= 1024.0
+    return f"{size:.1f} PB"
+
+def write_directory_structure(log_file, directory):
+    for file_info in sorted(directory['files'], key=lambda x: x['path']):
+        log_file.write(f"{file_info['path']} ({format_size(file_info['size'])})\n")
+
+def save_log(result, log_file_path):
+    try:
+        with open(log_file_path, 'w', encoding='utf-8') as log_file:
+            root_directory_info = result[0]
+            write_directory_structure(log_file, root_directory_info)
+            log_file.flush()
+            os.fsync(log_file.fileno())
+        print(f"{Fore.LIGHTGREEN_EX}\nLog file saved as '{log_file_path}'{Style.RESET_ALL}")
+    except Exception as e:
+        print(f"{Fore.RED}\nAn error occurred while saving the log file: {e}{Style.RESET_ALL}")
+
+def update_progress_bar(pbar, count, total):
+    pbar.n = count
+    pbar.total = total
+    pbar.refresh()
+
+def main():
+    try:
+        if not is_root():
+            print(f"\n\n\n ")
+            print(f"{Fore.RED}           dP                  dP   dP    dP  .88888.  dP     dP                     dP   .d8888ba  {Style.RESET_ALL}")
+            print(f"{Fore.RED}           88                  88   Y8.  .8P d8'   `8b 88     88                     88   `8'   `8b {Style.RESET_ALL}")
+            print(f"{Fore.RED}dP  dP  dP 88d888b. .d8888b. d8888P  Y8aa8P  88     88 88     88 .d8888b. .d8888b. d8888P      .d8' {Style.RESET_ALL}")
+            print(f"{Fore.RED}88  88  88 88'  `88 88'  `88   88      88    88     88 88     88 88'  `88 88'  `88   88      d8P'   {Style.RESET_ALL}")
+            print(f"{Fore.RED}88.88b.88' 88    88 88.  .88   88      88    Y8.   .8P Y8.   .8P 88.  .88 88.  .88   88             {Style.RESET_ALL}")
+            print(f"{Fore.RED}8888P Y8P  dP    dP `88888P8   dP      dP     `8888P'  `Y88888P' `8888P88 `88888P'   dP      oo    {Style.RESET_ALL}")
+            print(f"{Fore.RED}                                                                     .88            {Style.RESET_ALL}")
+            print(f"{Fore.RED}                                                                  d8888P            {Style.RESET_ALL}")
+            print(f"{Fore.RED}\n\n\n[$]  This tool needs to be run as root.{Style.RESET_ALL}")
+            input(f"{Fore.RED}[$]             press enter to exit{Style.RESET_ALL}")
+            return
+
+        root_directory = "/"
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        log_file_name = f"directory-map-{timestamp}.txt"
+        error_log_file_name = f"error-log-{timestamp}.txt"
+        log_file_path = os.path.join(root_directory, log_file_name)
+        error_log_file_path = os.path.join(root_directory, error_log_file_name)
+
+        # Create and open the log file before starting the mapping
+        with open(log_file_path, 'w', encoding='utf-8') as log_file, open(error_log_file_path, 'w', encoding='utf-8') as error_log_file:
+            print(f"\n\n\n ")
+            print(f"{Fore.RED}           dP                  dP   dP    dP  .88888.  dP     dP                     dP   .d8888ba  {Style.RESET_ALL}")
+            print(f"{Fore.RED}           88                  88   Y8.  .8P d8'   `8b 88     88                     88   `8'   `8b {Style.RESET_ALL}")
+            print(f"{Fore.RED}dP  dP  dP 88d888b. .d8888b. d8888P  Y8aa8P  88     88 88     88 .d8888b. .d8888b. d8888P      .d8' {Style.RESET_ALL}")
+            print(f"{Fore.RED}88  88  88 88'  `88 88'  `88   88      88    88     88 88     88 88'  `88 88'  `88   88      d8P'   {Style.RESET_ALL}")
+            print(f"{Fore.RED}88.88b.88' 88    88 88.  .88   88      88    Y8.   .8P Y8.   .8P 88.  .88 88.  .88   88             {Style.RESET_ALL}")
+            print(f"{Fore.RED}8888P Y8P  dP    dP `88888P8   dP      dP     `8888P'  `Y88888P' `8888P88 `88888P'   dP      oo    {Style.RESET_ALL}")
+            print(f"{Fore.RED}                                                                     .88            {Style.RESET_ALL}")
+            print(f"{Fore.RED}                                                                  d8888P            {Style.RESET_ALL}")
+            print(f"{Fore.CYAN}\n\n[$]This tool will map the entire system {Style.RESET_ALL}")
+            print(f"{Fore.CYAN}[$]Output file: {log_file_path}.{Style.RESET_ALL}")
+            print(f"{Fore.CYAN}[$]Error log file: {error_log_file_path}.{Style.RESET_ALL}")
+            proceed = input(f"{Fore.YELLOW}\n\n[$]Are you happy to proceed? (y/n): {Style.RESET_ALL}").strip().lower()
+
+            if proceed != 'y':
+                print(f"{Fore.RED}[$]Operation cancelled by user.{Style.RESET_ALL}")
+                return
+
+            if not os.path.exists(root_directory):
+                print(f"{Fore.RED}[$]The root directory '{root_directory}' does not exist.{Style.RESET_ALL}")
+                return
+
+            with tqdm(total=100, desc="[$]Mapping directories", bar_format="{l_bar}{bar:10}{r_bar}{bar:-10b}", colour="green") as pbar:
+                def progress_callback(count, total):
+                    update_progress_bar(pbar, count, total)
+
+                with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+                    futures = [executor.submit(directory_mapper, root_directory, log_file, error_log_file, progress_callback)]
+                    for future in futures:
+                        future.result()  # Wait for the future to complete
+
+            log_file.flush()
+            os.fsync(log_file.fileno())
+            error_log_file.flush()
+            os.fsync(error_log_file.fileno())
+
+        print(f"{Fore.LIGHTGREEN_EX}\n\n[$]Directory mapping completed successfully!{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}\n\n[$]Output saved to: {log_file_path}{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}\n\n[$]Error log saved to: {error_log_file_path}{Style.RESET_ALL}")
+        input(f"{Fore.YELLOW}\n[$]Press Enter to close the tool.{Style.RESET_ALL}")
+
+    except Exception as e:
+        print(f"{Fore.RED}[$]An error occurred: {e}{Style.RESET_ALL}")
+
+if __name__ == "__main__":
+    main()
